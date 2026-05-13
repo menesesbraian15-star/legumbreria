@@ -1,5 +1,4 @@
-// --- DATOS ---
-let productos = [
+const productosDefault = [
   { id:1, nombre:'Zanahoria', precio:800, stock:15, emoji:'🥕' },
   { id:2, nombre:'Papa', precio:600, stock:20, emoji:'🥔' },
   { id:3, nombre:'Cebolla', precio:700, stock:10, emoji:'🧅' },
@@ -9,7 +8,8 @@ let productos = [
   { id:7, nombre:'Limón', precio:500, stock:30, emoji:'🍋' },
   { id:8, nombre:'Manzana', precio:950, stock:12, emoji:'🍎' },
 ];
-let nextId = 9;
+let productos = JSON.parse(localStorage.getItem('productos') || 'null') || productosDefault;
+let nextId = parseInt(localStorage.getItem('nextId') || '9');
 let carrito = [];
 let historial = JSON.parse(localStorage.getItem('historial') || '[]');
 let nextVenta = parseInt(localStorage.getItem('nextVenta') || '1');
