@@ -1,8 +1,10 @@
 // =========================
-// LEGUMBRERÍA POS - FIXED
+// LEGUMBRERÍA POS - FULL FIX
 // =========================
 
-// --- DATOS ---
+// -------------------------
+// DATOS
+// -------------------------
 const productosDefault = [
   { id:1, nombre:'Zanahoria', precio:800, stock:15, emoji:'🥕' },
   { id:2, nombre:'Papa', precio:600, stock:20, emoji:'🥔' },
@@ -30,13 +32,16 @@ let nextVenta =
   parseInt(localStorage.getItem('nextVenta') || '1');
 
 let metodoPago = 'efectivo';
+
 let modoTeclado = 'cant';
+
 let valorTeclado = '';
+
 let productoSeleccionado = null;
 
-// =========================
+// -------------------------
 // GUARDAR
-// =========================
+// -------------------------
 function guardarProductos() {
 
   localStorage.setItem(
@@ -50,29 +55,35 @@ function guardarProductos() {
   );
 }
 
-// =========================
+// -------------------------
 // RELOJ
-// =========================
+// -------------------------
 function actualizarReloj() {
 
   const ahora = new Date();
 
-  document.getElementById('reloj').textContent =
-    ahora.toLocaleTimeString('es-AR', {
-      hour:'2-digit',
-      minute:'2-digit',
-      second:'2-digit'
-    });
+  const reloj =
+    document.getElementById('reloj');
+
+  if (reloj) {
+
+    reloj.textContent =
+      ahora.toLocaleTimeString('es-AR', {
+        hour:'2-digit',
+        minute:'2-digit',
+        second:'2-digit'
+      });
+  }
 }
 
 setInterval(actualizarReloj, 1000);
 
 actualizarReloj();
 
-// =========================
+// -------------------------
 // NAVEGACIÓN
-// =========================
-function mostrarVista(id) {
+// -------------------------
+function mostrarVista(id, btn = null) {
 
   document.querySelectorAll('.vista')
     .forEach(v => v.classList.add('oculto'));
@@ -80,43 +91,62 @@ function mostrarVista(id) {
   document.querySelectorAll('.tab-btn')
     .forEach(b => b.classList.remove('active'));
 
-  document.getElementById('vista-' + id)
-    .classList.remove('oculto');
+  const vista =
+    document.getElementById('vista-' + id);
 
-  event.currentTarget.classList.add('active');
+  if (vista) {
+    vista.classList.remove('oculto');
+  }
 
-  if (id === 'inventario') renderInventario();
+  if (btn) {
+    btn.classList.add('active');
+  }
 
-  if (id === 'historial') renderHistorial();
+  if (id === 'inventario') {
+    renderInventario();
+  }
+
+  if (id === 'historial') {
+    renderHistorial();
+  }
 }
 
-// =========================
+// -------------------------
 // TECLADO
-// =========================
+// -------------------------
 function teclaAccion(modo) {
 
   modoTeclado = modo;
 
   valorTeclado = '';
 
-  document.getElementById('teclado-label').textContent =
-    modo === 'cant'
-      ? 'Cantidad (kg)'
-      : 'Descuento (%)';
+  const label =
+    document.getElementById('teclado-label');
 
-  document.getElementById('teclado-valor').textContent =
-    '0';
+  const valor =
+    document.getElementById('teclado-valor');
+
+  if (label) {
+
+    label.textContent =
+      modo === 'cant'
+        ? 'Cantidad (kg)'
+        : 'Descuento (%)';
+  }
+
+  if (valor) {
+    valor.textContent = '0';
+  }
 
   actualizarTotales();
 }
 
 function tecla(val) {
 
-  // borrar
+  // limpiar
   if (val === 'C') {
 
     valorTeclado = '';
-
   }
 
   // borrar uno
@@ -126,7 +156,6 @@ function tecla(val) {
       valorTeclado.length > 1
         ? valorTeclado.slice(0, -1)
         : '';
-
   }
 
   // negativo
@@ -136,7 +165,6 @@ function tecla(val) {
       valorTeclado.startsWith('-')
         ? valorTeclado.slice(1)
         : '-' + valorTeclado;
-
   }
 
   // decimal
@@ -168,12 +196,18 @@ function tecla(val) {
   }
 
   // mostrar
-  document.getElementById('teclado-valor').textContent =
-    valorTeclado || '0';
+  const pantalla =
+    document.getElementById('teclado-valor');
 
-  // =====================
+  if (pantalla) {
+
+    pantalla.textContent =
+      valorTeclado || '0';
+  }
+
+  // ---------------------
   // CANTIDAD
-  // =====================
+  // ---------------------
   if (
     modoTeclado === 'cant'
     && productoSeleccionado
@@ -187,80 +221,80 @@ function tecla(val) {
         c => c.id === productoSeleccionado.id
       );
 
-    // eliminar si queda en 0
+    // eliminar
     if (cantidad <= 0) {
 
       carrito =
         carrito.filter(
           c => c.id !== productoSeleccionado.id
         );
+    }
 
-    } else {
+    // actualizar
+    else if (item) {
 
-      // actualizar
-      if (item) {
+      item.cantidad = cantidad;
 
-        item.cantidad = cantidad;
+      item.subtotal =
+        item.precio * cantidad;
+    }
 
-        item.subtotal =
-          item.precio * cantidad;
+    // nuevo
+    else {
 
-      }
+      carrito.push({
 
-      // nuevo
-      else {
+        id: productoSeleccionado.id,
 
-        carrito.push({
+        nombre: productoSeleccionado.nombre,
 
-          id: productoSeleccionado.id,
+        emoji: productoSeleccionado.emoji,
 
-          nombre: productoSeleccionado.nombre,
+        precio: productoSeleccionado.precio,
 
-          emoji: productoSeleccionado.emoji,
+        cantidad,
 
-          precio: productoSeleccionado.precio,
-
-          cantidad: cantidad,
-
-          subtotal:
-            productoSeleccionado.precio
-            * cantidad
-        });
-      }
+        subtotal:
+          productoSeleccionado.precio
+          * cantidad
+      });
     }
 
     renderCarrito();
   }
 
-  // =====================
+  // ---------------------
   // DESCUENTO
-  // =====================
+  // ---------------------
   if (modoTeclado === 'desc') {
 
     actualizarTotales();
   }
 }
 
-// =========================
+// -------------------------
 // PRODUCTOS
-// =========================
+// -------------------------
 function renderProductos() {
 
+  const buscador =
+    document.getElementById('buscador');
+
   const q =
-    (
-      document.getElementById('buscador')
-        ? document.getElementById('buscador').value
-        : ''
-    ).toLowerCase();
+    buscador
+      ? buscador.value.toLowerCase()
+      : '';
 
   const grid =
     document.getElementById('productos-grid');
 
+  if (!grid) return;
+
   grid.innerHTML = '';
 
   productos
-    .filter(
-      p => p.nombre.toLowerCase().includes(q)
+    .filter(p =>
+      p.nombre.toLowerCase().includes(q)
     )
     .forEach(p => {
 
@@ -275,9 +309,11 @@ function renderProductos() {
         && productoSeleccionado.id === p.id
       ) {
 
-        div.style.borderColor = '#4CAF50';
+        div.style.borderColor =
+          '#4CAF50';
 
-        div.style.background = '#f1f8e9';
+        div.style.background =
+          '#f1f8e9';
       }
 
       div.innerHTML = `
@@ -307,33 +343,40 @@ function seleccionarProducto(p) {
 
   modoTeclado = 'cant';
 
-  // FIX PRINCIPAL
   valorTeclado = '';
 
-  document.getElementById('teclado-label').textContent =
-    'Cantidad (kg)';
+  const label =
+    document.getElementById('teclado-label');
 
-  document.getElementById('teclado-valor').textContent =
-    '0';
+  const pantalla =
+    document.getElementById('teclado-valor');
+
+  if (label) {
+    label.textContent = 'Cantidad (kg)';
+  }
+
+  if (pantalla) {
+    pantalla.textContent = '0';
+  }
 
   const item =
     carrito.find(c => c.id === p.id);
 
-  if (item) {
+  if (item && pantalla) {
 
     valorTeclado =
       String(item.cantidad);
 
-    document.getElementById('teclado-valor').textContent =
+    pantalla.textContent =
       valorTeclado;
   }
 
   renderProductos();
 }
 
-// =========================
+// -------------------------
 // CARRITO
-// =========================
+// -------------------------
 function renderCarrito() {
 
   const wrap =
@@ -341,6 +384,8 @@ function renderCarrito() {
 
   const vacio =
     document.getElementById('carrito-vacio');
+
+  if (!wrap || !vacio) return;
 
   const items =
     carrito.filter(c => c.cantidad > 0);
@@ -407,7 +452,6 @@ function quitarItem(i) {
   carrito.splice(i, 1);
 
   if (carrito.length === 0) {
-
     productoSeleccionado = null;
   }
 
@@ -416,9 +460,9 @@ function quitarItem(i) {
   renderProductos();
 }
 
-// =========================
+// -------------------------
 // TOTALES
-// =========================
+// -------------------------
 function actualizarTotales() {
 
   const subtotal =
@@ -441,31 +485,48 @@ function actualizarTotales() {
   const total =
     subtotal - descMonto;
 
-  document.getElementById('subtotal').textContent =
-    '$' + subtotal.toFixed(2);
+  const subtotalEl =
+    document.getElementById('subtotal');
 
-  document.getElementById('total').textContent =
-    '$' + total.toFixed(2);
+  const totalEl =
+    document.getElementById('total');
+
+  if (subtotalEl) {
+    subtotalEl.textContent =
+      '$' + subtotal.toFixed(2);
+  }
+
+  if (totalEl) {
+    totalEl.textContent =
+      '$' + total.toFixed(2);
+  }
 
   const lineaDesc =
     document.getElementById('linea-desc');
 
-  if (descMonto > 0) {
+  const montoDesc =
+    document.getElementById('monto-desc');
+
+  if (
+    descMonto > 0
+    && lineaDesc
+    && montoDesc
+  ) {
 
     lineaDesc.style.display = 'flex';
 
-    document.getElementById('monto-desc').textContent =
+    montoDesc.textContent =
       '-$' + descMonto.toFixed(2);
 
-  } else {
+  } else if (lineaDesc) {
 
     lineaDesc.style.display = 'none';
   }
 }
 
-// =========================
+// -------------------------
 // PAGO
-// =========================
+// -------------------------
 function selPago(btn, metodo) {
 
   document.querySelectorAll('.btn-pago')
@@ -476,9 +537,9 @@ function selPago(btn, metodo) {
   metodoPago = metodo;
 }
 
-// =========================
+// -------------------------
 // CONFIRMAR VENTA
-// =========================
+// -------------------------
 function confirmarVenta() {
 
   const itemsValidos =
@@ -542,7 +603,6 @@ function confirmarVenta() {
     String(nextVenta)
   );
 
-  // reset completo
   carrito = [];
 
   productoSeleccionado = null;
@@ -553,17 +613,12 @@ function confirmarVenta() {
 
   metodoPago = 'efectivo';
 
-  document.getElementById('teclado-valor').textContent =
-    '0';
+  const pantalla =
+    document.getElementById('teclado-valor');
 
-  document.getElementById('teclado-label').textContent =
-    'Cantidad (kg)';
-
-  document.querySelectorAll('.btn-pago')
-    .forEach(b => b.classList.remove('active'));
-
-  document.querySelector('.btn-pago')
-    .classList.add('active');
+  if (pantalla) {
+    pantalla.textContent = '0';
+  }
 
   renderCarrito();
 
@@ -576,15 +631,17 @@ function confirmarVenta() {
   );
 }
 
-// =========================
+// -------------------------
 // CANCELAR
-// =========================
+// -------------------------
 function cancelarVenta() {
 
   if (carrito.length === 0) return;
 
   if (
-    confirm('¿Cancelar la venta actual?')
+    confirm(
+      '¿Cancelar la venta actual?'
+    )
   ) {
 
     carrito = [];
@@ -595,8 +652,12 @@ function cancelarVenta() {
 
     modoTeclado = 'cant';
 
-    document.getElementById('teclado-valor').textContent =
-      '0';
+    const pantalla =
+      document.getElementById('teclado-valor');
+
+    if (pantalla) {
+      pantalla.textContent = '0';
+    }
 
     renderCarrito();
 
@@ -606,28 +667,30 @@ function cancelarVenta() {
   }
 }
 
-// =========================
+// -------------------------
 // INVENTARIO
-// =========================
+// -------------------------
 function agregarProducto() {
 
   const nombre =
     document.getElementById('inv-nombre')
-      .value.trim();
+      ?.value.trim();
 
   const precio =
     parseFloat(
-      document.getElementById('inv-precio').value
+      document.getElementById('inv-precio')
+        ?.value
     );
 
   const stock =
     parseFloat(
-      document.getElementById('inv-stock').value
+      document.getElementById('inv-stock')
+        ?.value
     );
 
   const emoji =
     document.getElementById('inv-emoji')
-      .value.trim() || '🥦';
+      ?.value.trim() || '🥦';
 
   if (
     !nombre
@@ -648,16 +711,6 @@ function agregarProducto() {
     emoji
   });
 
-  [
-    'inv-nombre',
-    'inv-precio',
-    'inv-stock',
-    'inv-emoji'
-  ].forEach(id => {
-
-    document.getElementById(id).value = '';
-  });
-
   guardarProductos();
 
   renderInventario();
@@ -665,13 +718,15 @@ function agregarProducto() {
   renderProductos();
 }
 
-// =========================
+// -------------------------
 // INVENTARIO TABLA
-// =========================
+// -------------------------
 function renderInventario() {
 
   const tbody =
     document.getElementById('inv-tabla');
+
+  if (!tbody) return;
 
   tbody.innerHTML = '';
 
@@ -702,9 +757,9 @@ function renderInventario() {
   });
 }
 
-// =========================
+// -------------------------
 // HISTORIAL
-// =========================
+// -------------------------
 function renderHistorial() {
 
   const tbody =
@@ -712,6 +767,8 @@ function renderHistorial() {
 
   const vacio =
     document.getElementById('hist-vacio');
+
+  if (!tbody || !vacio) return;
 
   tbody.innerHTML = '';
 
@@ -746,9 +803,9 @@ function renderHistorial() {
   });
 }
 
-// =========================
+// -------------------------
 // INICIO
-// =========================
+// -------------------------
 renderProductos();
 
 renderCarrito();
