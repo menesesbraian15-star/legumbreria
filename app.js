@@ -351,3 +351,4 @@ function borrarHistorial() {
 
 // --- INICIO ---
 renderProductos();
+
