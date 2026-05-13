@@ -1,4 +1,4 @@
-// --- 1. DATOS INICIALES ---
+// --- 1. ESTADO DE LA APLICACIÓN ---
 const productosDefault = [
   { id: 1, nombre: 'Zanahoria', precio: 800, stock: 15, emoji: '🥕' },
   { id: 2, nombre: 'Papa', precio: 600, stock: 20, emoji: '🥔' },
@@ -15,33 +15,17 @@ let carrito = [];
 let historial = JSON.parse(localStorage.getItem('historial') || '[]');
 let nextVenta = parseInt(localStorage.getItem('nextVenta') || '1');
 
-// Estado de la sesión actual
+// Variables de control
 let metodoPago = 'efectivo';
 let modoTeclado = 'cant'; 
 let valorTeclado = '0';
 let productoSeleccionado = null;
 
-// --- 2. FUNCIONES DE NAVEGACIÓN Y RELOJ ---
-function actualizarReloj() {
-  const el = document.getElementById('reloj');
-  if (el) el.textContent = new Date().toLocaleTimeString('es-AR');
-}
-setInterval(actualizarReloj, 1000);
-
-function mostrarVista(id, btn) {
-  document.querySelectorAll('.vista').forEach(v => v.classList.add('oculto'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  const vista = document.getElementById('vista-' + id);
-  if (vista) vista.classList.remove('oculto');
-  if (btn) btn.classList.add('active');
-  if (id === 'historial') renderHistorial();
-}
-
-// --- 3. LÓGICA DEL TECLADO (CORREGIDA) ---
+// --- 2. LÓGICA DEL TECLADO ---
 function tecla(val) {
-  // BLOQUEO: Si no hay producto seleccionado, no permite escribir números
+  // BLOQUEO SEGURIDAD: No permite escribir si no hay un producto activo
   if (!productoSeleccionado && modoTeclado === 'cant') {
-    alert("Primero toca un producto de la lista");
+    alert("Seleccione un producto de la lista primero");
     return;
   }
 
@@ -54,35 +38,38 @@ function tecla(val) {
   } else if (val === '+/-') {
     valorTeclado = valorTeclado.startsWith('-') ? valorTeclado.slice(1) : '-' + valorTeclado;
   } else {
-    // Reemplaza el '0' inicial para evitar '08'
+    // Reemplazo del 0 inicial
     valorTeclado = valorTeclado === '0' ? val : valorTeclado + val;
   }
 
+  // Actualizar pantalla teclado
   document.getElementById('teclado-valor').textContent = valorTeclado;
 
-  // Si estamos en modo cantidad, actualizamos el carrito en tiempo real
+  // Sincronizar con el carrito en tiempo real
   if (modoTeclado === 'cant' && productoSeleccionado) {
-    const cantidad = parseFloat(valorTeclado) || 0;
-    const idx = carrito.findIndex(c => c.id === productoSeleccionado.id);
-
-    if (idx >= 0) {
-      if (cantidad > 0) {
-        carrito[idx].cantidad = cantidad;
-        carrito[idx].subtotal = productoSeleccionado.precio * cantidad;
-      } else {
-        carrito.splice(idx, 1);
-      }
-    } else if (cantidad > 0) {
-      carrito.push({
-        ...productoSeleccionado,
-        cantidad: cantidad,
-        subtotal: productoSeleccionado.precio * cantidad
-      });
-    }
-    renderCarrito();
+    actualizarCarrito(parseFloat(valorTeclado) || 0);
   } else if (modoTeclado === 'desc') {
     actualizarTotales();
   }
+}
+
+function actualizarCarrito(cantidad) {
+  const idx = carrito.findIndex(c => c.id === productoSeleccionado.id);
+  if (idx >= 0) {
+    if (cantidad > 0) {
+      carrito[idx].cantidad = cantidad;
+      carrito[idx].subtotal = productoSeleccionado.precio * cantidad;
+    } else {
+      carrito.splice(idx, 1);
+    }
+  } else if (cantidad > 0) {
+    carrito.push({
+      ...productoSeleccionado,
+      cantidad: cantidad,
+      subtotal: productoSeleccionado.precio * cantidad
+    });
+  }
+  renderCarrito();
 }
 
 function teclaAccion(modo) {
@@ -93,16 +80,17 @@ function teclaAccion(modo) {
   actualizarTotales();
 }
 
-// --- 4. RENDERIZADO DE PRODUCTOS ---
+// --- 3. PRODUCTOS ---
 function seleccionarProducto(p) {
   productoSeleccionado = p;
   modoTeclado = 'cant';
   
-  // Actualizar etiqueta del teclado para saber qué estamos editando
+  // Feedback visual en la calculadora
   document.getElementById('teclado-label').textContent = `${p.emoji} ${p.nombre} ($${p.precio})`;
 
-  const enCarrito = carrito.find(c => c.id === p.id);
-  valorTeclado = enCarrito ? String(enCarrito.cantidad) : '0';
+  // Cargar cantidad si ya existe en el carrito
+  const existente = carrito.find(c => c.id === p.id);
+  valorTeclado = existente ? String(existente.cantidad) : '0';
   document.getElementById('teclado-valor').textContent = valorTeclado;
 
   renderProductos();
@@ -116,7 +104,6 @@ function renderProductos() {
   productos.forEach(p => {
     const div = document.createElement('div');
     div.className = 'tarjeta-producto';
-    // Estilo de selección
     if (productoSeleccionado && productoSeleccionado.id === p.id) {
       div.style.border = "3px solid #4CAF50";
       div.style.backgroundColor = "#e8f5e9";
@@ -131,24 +118,24 @@ function renderProductos() {
   });
 }
 
-// --- 5. CARRITO Y VENTAS ---
+// --- 4. CARRITO Y TOTALES ---
 function renderCarrito() {
   const wrap = document.getElementById('carrito-items');
   const vacio = document.getElementById('carrito-vacio');
   
   if (carrito.length === 0) {
     wrap.innerHTML = '';
-    vacio.style.display = 'flex';
+    if (vacio) vacio.style.display = 'flex';
     actualizarTotales();
     return;
   }
 
-  vacio.style.display = 'none';
+  if (vacio) vacio.style.display = 'none';
   wrap.innerHTML = '';
   carrito.forEach(item => {
     const div = document.createElement('div');
     div.className = 'item-carrito';
-    div.style = "display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; cursor:pointer";
+    div.style = "display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; cursor:pointer";
     div.innerHTML = `
       <span>${item.emoji} ${item.nombre} (${item.cantidad}kg)</span>
       <strong>$${item.subtotal.toFixed(2)}</strong>
@@ -167,14 +154,49 @@ function actualizarTotales() {
 
   document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
   document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+}
+
+// --- 5. CIERRE DE VENTA (EL ARREGLO) ---
+function confirmarVenta() {
+  if (carrito.length === 0) return alert('El carrito está vacío');
+
+  const totalTxt = document.getElementById('total').textContent;
+
+  const venta = {
+    id: nextVenta++,
+    fecha: new Date().toLocaleString(),
+    items: [...carrito],
+    total: totalTxt,
+    pago: metodoPago
+  };
+
+  historial.unshift(venta);
+  localStorage.setItem('historial', JSON.stringify(historial));
+  localStorage.setItem('nextVenta', nextVenta);
+
+  // --- LIMPIEZA CRÍTICA ---
+  carrito = [];
+  productoSeleccionado = null;
+  valorTeclado = '0';
+  modoTeclado = 'cant';
+  metodoPago = 'efectivo';
+
+  // Forzar reseteo de textos en pantalla
+  document.getElementById('teclado-valor').textContent = '0';
+  document.getElementById('teclado-label').textContent = 'Seleccione Producto';
+  document.getElementById('subtotal').textContent = '$0.00';
+  document.getElementById('total').textContent = '$0.00';
   
-  const lineaDesc = document.getElementById('linea-desc');
-  if (descuento > 0) {
-    lineaDesc.style.display = 'flex';
-    document.getElementById('monto-desc').textContent = `-$${descuento.toFixed(2)}`;
-  } else {
-    lineaDesc.style.display = 'none';
-  }
+  // Resetear estilos de botones de pago
+  document.querySelectorAll('.btn-pago').forEach(b => b.classList.remove('active'));
+  const btnEfectivo = document.querySelector('.btn-pago');
+  if (btnEfectivo) btnEfectivo.classList.add('active');
+
+  // Refrescar vistas
+  renderCarrito();
+  renderProductos();
+  
+  alert(`✅ Venta #${venta.id} completada.`);
 }
 
 function selPago(btn, metodo) {
@@ -183,68 +205,8 @@ function selPago(btn, metodo) {
   metodoPago = metodo;
 }
 
-// --- 6. CIERRE DE VENTA (LIMPIEZA TOTAL) ---
-function confirmarVenta() {
-  if (carrito.length === 0) return alert('El carrito está vacío');
-
-  const totalStr = document.getElementById('total').textContent;
-
-  const venta = {
-    id: nextVenta++,
-    fecha: new Date().toLocaleString(),
-    items: [...carrito],
-    total: totalStr,
-    pago: metodoPago
-  };
-
-  historial.unshift(venta);
-  localStorage.setItem('historial', JSON.stringify(historial));
-  localStorage.setItem('nextVenta', nextVenta);
-
-  // RESET ABSOLUTO
-  carrito = [];
-  productoSeleccionado = null;
-  valorTeclado = '0';
-  modoTeclado = 'cant';
-  metodoPago = 'efectivo';
-
-  // Limpiar Interfaz
-  document.getElementById('teclado-valor').textContent = '0';
-  document.getElementById('teclado-label').textContent = 'Seleccione Producto';
-  document.querySelectorAll('.btn-pago').forEach(b => b.classList.remove('active'));
-  if (document.querySelector('.btn-pago')) document.querySelector('.btn-pago').classList.add('active');
-
-  renderCarrito();
-  renderProductos();
-  alert(`✅ Venta #${venta.id} completada.`);
-}
-
-function cancelarVenta() {
-  if (confirm('¿Vaciar todo el carrito?')) {
-    carrito = [];
-    productoSeleccionado = null;
-    valorTeclado = '0';
-    document.getElementById('teclado-valor').textContent = '0';
-    document.getElementById('teclado-label').textContent = 'Cantidad (kg)';
-    renderCarrito();
-    renderProductos();
-  }
-}
-
-function renderHistorial() {
-  const tbody = document.getElementById('hist-tabla');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  historial.forEach(v => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>#${v.id}</td><td>${v.fecha}</td><td>${v.total}</td><td>${v.pago}</td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-// --- 7. INICIO ---
+// --- 6. INICIO ---
 window.onload = () => {
   renderProductos();
   renderCarrito();
-  actualizarReloj();
 };
