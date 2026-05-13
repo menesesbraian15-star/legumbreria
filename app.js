@@ -44,6 +44,11 @@ function teclaAccion(modo) {
   document.getElementById('teclado-label').textContent =
     modo === 'cant' ? 'Cantidad (kg)' : 'Descuento (%)';
   document.getElementById('teclado-valor').textContent = '0';
+
+  // Si hay producto seleccionado y cambiamos cantidad, actualizar preview
+  if (productoSeleccionado && modo === 'cant') {
+    actualizarTotales();
+  }
 }
 
 function tecla(val) {
@@ -60,6 +65,18 @@ function tecla(val) {
   }
   document.getElementById('teclado-valor').textContent = valorTeclado;
 
+  // Actualizar subtotal del último item del carrito en tiempo real
+  if (modoTeclado === 'cant' && carrito.length > 0 && productoSeleccionado) {
+    const cantidad = parseFloat(valorTeclado) || 0;
+    const idx = carrito.findIndex(c => c.id === productoSeleccionado.id);
+    if (idx >= 0) {
+      carrito[idx].cantidad = cantidad;
+      carrito[idx].subtotal = productoSeleccionado.precio * cantidad;
+      renderCarrito();
+      return;
+    }
+  }
+
   if (modoTeclado === 'desc') {
     actualizarTotales();
   }
@@ -67,7 +84,7 @@ function tecla(val) {
 
 // --- PRODUCTOS ---
 function renderProductos() {
-  const q = document.getElementById('buscador').value.toLowerCase();
+  const q = (document.getElementById('buscador').value || '').toLowerCase();
   const grid = document.getElementById('productos-grid');
   grid.innerHTML = '';
   productos
@@ -75,6 +92,10 @@ function renderProductos() {
     .forEach(p => {
       const div = document.createElement('div');
       div.className = 'tarjeta-producto';
+      if (productoSeleccionado && productoSeleccionado.id === p.id) {
+        div.style.borderColor = '#4CAF50';
+        div.style.background = '#f1f8e9';
+      }
       div.innerHTML = `
         <div class="tarjeta-emoji">${p.emoji}</div>
         <div class="tarjeta-nombre">${p.nombre}</div>
@@ -87,19 +108,38 @@ function renderProductos() {
 
 function seleccionarProducto(p) {
   productoSeleccionado = p;
-  const cantidad = parseFloat(valorTeclado) || 1;
-  const subtotal = p.precio * cantidad;
+  modoTeclado = 'cant';
+  valorTeclado = '0';
+  document.getElementById('teclado-label').textContent = 'Cantidad (kg)';
+  document.getElementById('teclado-valor').textContent = '0';
+  renderProductos();
+}
 
-  const existe = carrito.findIndex(c => c.id === p.id);
+function agregarAlCarritoConCantidad() {
+  if (!productoSeleccionado) { alert('Seleccioná un producto primero'); return; }
+  const cantidad = parseFloat(valorTeclado);
+  if (!cantidad || cantidad <= 0) { alert('Ingresá una cantidad'); return; }
+
+  const subtotal = productoSeleccionado.precio * cantidad;
+  const existe = carrito.findIndex(c => c.id === productoSeleccionado.id);
   if (existe >= 0) {
     carrito[existe].cantidad += cantidad;
     carrito[existe].subtotal += subtotal;
   } else {
-    carrito.push({ id: p.id, nombre: p.nombre, emoji: p.emoji, precio: p.precio, cantidad, subtotal });
+    carrito.push({
+      id: productoSeleccionado.id,
+      nombre: productoSeleccionado.nombre,
+      emoji: productoSeleccionado.emoji,
+      precio: productoSeleccionado.precio,
+      cantidad,
+      subtotal
+    });
   }
 
   valorTeclado = '0';
   document.getElementById('teclado-valor').textContent = '0';
+  productoSeleccionado = null;
+  renderProductos();
   renderCarrito();
 }
 
@@ -136,7 +176,9 @@ function renderCarrito() {
 
 function quitarItem(i) {
   carrito.splice(i, 1);
+  if (carrito.length === 0) productoSeleccionado = null;
   renderCarrito();
+  renderProductos();
 }
 
 function actualizarTotales() {
@@ -184,14 +226,21 @@ function confirmarVenta() {
 
   historial.unshift(venta);
   localStorage.setItem('historial', JSON.stringify(historial));
-  localStorage.setItem('nextVenta', nextVenta);
+  localStorage.setItem('nextVenta', String(nextVenta));
 
+  // Reset completo
   carrito = [];
   valorTeclado = '0';
   modoTeclado = 'cant';
+  productoSeleccionado = null;
   document.getElementById('teclado-valor').textContent = '0';
   document.getElementById('teclado-label').textContent = 'Cantidad (kg)';
+  document.querySelectorAll('.btn-pago').forEach(b => b.classList.remove('active'));
+  document.querySelector('.btn-pago').classList.add('active');
+  metodoPago = 'efectivo';
+
   renderCarrito();
+  renderProductos();
   alert(`✅ Venta #${venta.id} registrada — Total: $${total.toFixed(2)}`);
 }
 
@@ -199,7 +248,11 @@ function cancelarVenta() {
   if (carrito.length === 0) return;
   if (confirm('¿Cancelar la venta actual?')) {
     carrito = [];
+    productoSeleccionado = null;
+    valorTeclado = '0';
+    document.getElementById('teclado-valor').textContent = '0';
     renderCarrito();
+    renderProductos();
   }
 }
 
@@ -218,6 +271,34 @@ function agregarProducto() {
   renderProductos();
 }
 
+function editarProducto(i) {
+  const p = productos[i];
+  const nuevoNombre = prompt('Nombre:', p.nombre);
+  if (nuevoNombre === null) return;
+  const nuevoPrecio = prompt('Precio ($/kg):', p.precio);
+  if (nuevoPrecio === null) return;
+  const nuevoStock = prompt('Stock:', p.stock);
+  if (nuevoStock === null) return;
+  const nuevoEmoji = prompt('Emoji:', p.emoji);
+  if (nuevoEmoji === null) return;
+
+  productos[i].nombre = nuevoNombre.trim() || p.nombre;
+  productos[i].precio = parseFloat(nuevoPrecio) || p.precio;
+  productos[i].stock  = parseFloat(nuevoStock) || p.stock;
+  productos[i].emoji  = nuevoEmoji.trim() || p.emoji;
+
+  renderInventario();
+  renderProductos();
+}
+
+function eliminarProducto(i) {
+  if (confirm(`¿Eliminar "${productos[i].nombre}"?`)) {
+    productos.splice(i, 1);
+    renderInventario();
+    renderProductos();
+  }
+}
+
 function renderInventario() {
   const tbody = document.getElementById('inv-tabla');
   tbody.innerHTML = '';
@@ -227,18 +308,13 @@ function renderInventario() {
       <td>${p.emoji} ${p.nombre}</td>
       <td>$${p.precio.toLocaleString()}</td>
       <td>${p.stock}</td>
-      <td><button onclick="eliminarProducto(${i})" style="background:#e53935;padding:4px 10px;font-size:12px">Eliminar</button></td>
+      <td style="display:flex;gap:6px;">
+        <button onclick="editarProducto(${i})" style="background:#1565c0;padding:4px 10px;font-size:12px">✏️ Editar</button>
+        <button onclick="eliminarProducto(${i})" style="background:#e53935;padding:4px 10px;font-size:12px">🗑 Eliminar</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
-}
-
-function eliminarProducto(i) {
-  if (confirm(`¿Eliminar "${productos[i].nombre}"?`)) {
-    productos.splice(i, 1);
-    renderInventario();
-    renderProductos();
-  }
 }
 
 // --- HISTORIAL ---
@@ -251,7 +327,7 @@ function renderHistorial() {
   vacio.style.display = 'none';
 
   historial.forEach(v => {
-    const detalle = v.items.map(i => `${i.emoji}${i.nombre} (${i.cantidad.toFixed(1)}kg)`).join(', ');
+    const detalle = v.items.map(i => `${i.emoji}${i.nombre} (${i.cantidad.toFixed(2)}kg)`).join(', ');
     const badge = `<span class="badge-pago badge-${v.pago}">${v.pago}</span>`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
