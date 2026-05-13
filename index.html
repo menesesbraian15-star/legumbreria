@@ -8,55 +8,136 @@
 </head>
 <body>
 
-  <header>
-    <h1>🥦 La Legumbrería</h1>
-    <nav>
-      <button onclick="mostrarSeccion('venta')">Nueva venta</button>
-      <button onclick="mostrarSeccion('inventario')">Inventario</button>
-      <button onclick="mostrarSeccion('historial')">Historial</button>
-    </nav>
-  </header>
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">🥦 La Legumbrería</div>
+    <div class="topbar-nav">
+      <button class="tab-btn active" onclick="mostrarVista('pos')">🛒 Venta</button>
+      <button class="tab-btn" onclick="mostrarVista('inventario')">📦 Inventario</button>
+      <button class="tab-btn" onclick="mostrarVista('historial')">📋 Historial</button>
+    </div>
+    <div class="topbar-hora" id="reloj"></div>
+  </div>
 
-  <section id="venta">
-    <h2>Nueva venta</h2>
-    <div class="form-grupo">
-      <label>Producto:</label>
-      <select id="sel-producto"></select>
-    </div>
-    <div class="form-grupo">
-      <label>Peso (kg) o cantidad:</label>
-      <input type="number" id="inp-cantidad" placeholder="Ej: 0.5" step="0.01">
-    </div>
-    <button onclick="agregarAlCarrito()">Agregar al carrito</button>
-    <h3>Carrito</h3>
-    <ul id="lista-carrito"></ul>
-    <p><strong>Total: $<span id="total">0</span></strong></p>
-    <button onclick="confirmarVenta()">✅ Confirmar venta</button>
-  </section>
+  <!-- POS -->
+  <div id="vista-pos" class="vista">
+    <div class="pos-layout">
 
-  <section id="inventario" class="oculto">
-    <h2>Inventario</h2>
-    <div class="form-grupo">
-      <label>Nombre:</label>
-      <input type="text" id="inv-nombre" placeholder="Ej: Zanahoria">
-    </div>
-    <div class="form-grupo">
-      <label>Precio por kg/unidad ($):</label>
-      <input type="number" id="inv-precio" placeholder="Ej: 800">
-    </div>
-    <div class="form-grupo">
-      <label>Stock:</label>
-      <input type="number" id="inv-stock" placeholder="Ej: 20" step="0.1">
-    </div>
-    <button onclick="agregarProducto()">Agregar producto</button>
-    <h3>Productos</h3>
-    <ul id="lista-inventario"></ul>
-  </section>
+      <!-- IZQUIERDA: CARRITO -->
+      <div class="panel-carrito">
+        <div class="carrito-header">Carrito</div>
+        <div class="carrito-items" id="carrito-items">
+          <div class="carrito-vacio" id="carrito-vacio">
+            <span>🛒</span>
+            <p>El carrito está vacío</p>
+          </div>
+        </div>
+        <div class="carrito-totales">
+          <div class="linea-total">
+            <span>Subtotal</span><span id="subtotal">$0.00</span>
+          </div>
+          <div class="linea-total descuento" id="linea-desc" style="display:none">
+            <span>Descuento</span><span id="monto-desc">-$0.00</span>
+          </div>
+          <div class="linea-total grande">
+            <span>TOTAL</span><span id="total">$0.00</span>
+          </div>
+        </div>
+        <div class="metodos-pago">
+          <button class="btn-pago active" onclick="selPago(this,'efectivo')">💵 Efectivo</button>
+          <button class="btn-pago" onclick="selPago(this,'transferencia')">📲 Transfer.</button>
+          <button class="btn-pago" onclick="selPago(this,'tarjeta')">💳 Tarjeta</button>
+        </div>
+        <div class="teclado">
+          <div class="teclado-display">
+            <span id="teclado-label" class="teclado-label">Cantidad (kg)</span>
+            <span id="teclado-valor">0</span>
+          </div>
+          <div class="teclado-grid">
+            <button onclick="tecla('1')">1</button>
+            <button onclick="tecla('2')">2</button>
+            <button onclick="tecla('3')">3</button>
+            <button class="tecla-accion" onclick="teclaAccion('desc')">Desc %</button>
+            <button onclick="tecla('4')">4</button>
+            <button onclick="tecla('5')">5</button>
+            <button onclick="tecla('6')">6</button>
+            <button class="tecla-accion" onclick="teclaAccion('cant')">Cant.</button>
+            <button onclick="tecla('7')">7</button>
+            <button onclick="tecla('8')">8</button>
+            <button onclick="tecla('9')">9</button>
+            <button class="tecla-borrar" onclick="tecla('back')">⌫</button>
+            <button onclick="tecla('+/-')">+/-</button>
+            <button onclick="tecla('0')">0</button>
+            <button onclick="tecla('.')">.</button>
+            <button class="tecla-borrar" onclick="tecla('C')">C</button>
+          </div>
+          <button class="btn-confirmar" onclick="confirmarVenta()">✅ Confirmar venta</button>
+          <button class="btn-cancelar" onclick="cancelarVenta()">✕ Cancelar</button>
+        </div>
+      </div>
 
-  <section id="historial" class="oculto">
-    <h2>Historial de ventas</h2>
-    <ul id="lista-historial"></ul>
-  </section>
+      <!-- DERECHA: PRODUCTOS -->
+      <div class="panel-productos">
+        <div class="productos-header">
+          <input type="text" id="buscador" placeholder="🔍 Buscar producto..." oninput="renderProductos()">
+        </div>
+        <div class="productos-grid" id="productos-grid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- INVENTARIO -->
+  <div id="vista-inventario" class="vista oculto">
+    <div class="seccion">
+      <h2>Agregar producto</h2>
+      <div class="form-fila">
+        <div class="form-grupo">
+          <label>Nombre</label>
+          <input type="text" id="inv-nombre" placeholder="Ej: Zanahoria">
+        </div>
+        <div class="form-grupo">
+          <label>Precio ($/kg o unidad)</label>
+          <input type="number" id="inv-precio" placeholder="Ej: 800">
+        </div>
+        <div class="form-grupo">
+          <label>Stock</label>
+          <input type="number" id="inv-stock" placeholder="Ej: 20" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Emoji</label>
+          <input type="text" id="inv-emoji" placeholder="Ej: 🥕" maxlength="2">
+        </div>
+      </div>
+      <button onclick="agregarProducto()">+ Agregar</button>
+    </div>
+    <div class="seccion">
+      <h2>Productos en inventario</h2>
+      <table class="tabla">
+        <thead>
+          <tr><th>Producto</th><th>Precio</th><th>Stock</th><th></th></tr>
+        </thead>
+        <tbody id="inv-tabla"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="vista-historial" class="vista oculto">
+    <div class="seccion">
+      <div class="historial-header">
+        <h2>Historial de ventas</h2>
+        <button class="btn-rojo" onclick="borrarHistorial()">🗑 Borrar todo</button>
+      </div>
+      <table class="tabla">
+        <thead>
+          <tr><th>#</th><th>Fecha y hora</th><th>Productos</th><th>Pago</th><th>Total</th></tr>
+        </thead>
+        <tbody id="hist-tabla"></tbody>
+      </table>
+      <p id="hist-vacio" style="color:#888;text-align:center;padding:2rem">No hay ventas aún</p>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
