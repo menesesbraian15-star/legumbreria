@@ -1,4 +1,4 @@
-// --- 1. DATOS INICIALES ---
+// --- 1. ESTADO DE LA APLICACIÓN ---
 const productosDefault = [
   { id: 1, nombre: 'Zanahoria', precio: 800, stock: 15, emoji: '🥕' },
   { id: 2, nombre: 'Papa', precio: 600, stock: 20, emoji: '🥔' },
@@ -14,37 +14,31 @@ let productos = JSON.parse(localStorage.getItem('productos') || 'null') || produ
 let carrito = [];
 let historial = JSON.parse(localStorage.getItem('historial') || '[]');
 let nextVenta = parseInt(localStorage.getItem('nextVenta') || '1');
+let nextId = parseInt(localStorage.getItem('nextId') || '9');
 
-// Estado de la sesión actual
+// Variables de control de interfaz
 let metodoPago = 'efectivo';
-let modoTeclado = 'cant'; 
+let modoTeclado = 'cant'; // 'cant' o 'desc'
 let valorTeclado = '0';
 let productoSeleccionado = null;
 
-// --- 2. FUNCIONES DE NAVEGACIÓN Y RELOJ ---
+// --- 2. FUNCIONES DE UTILIDAD ---
+function guardarLocal() {
+  localStorage.setItem('productos', JSON.stringify(productos));
+  localStorage.setItem('historial', JSON.stringify(historial));
+  localStorage.setItem('nextVenta', String(nextVenta));
+  localStorage.setItem('nextId', String(nextId));
+}
+
 function actualizarReloj() {
   const el = document.getElementById('reloj');
   if (el) el.textContent = new Date().toLocaleTimeString('es-AR');
 }
 setInterval(actualizarReloj, 1000);
 
-function mostrarVista(id, btn) {
-  document.querySelectorAll('.vista').forEach(v => v.classList.add('oculto'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  const vista = document.getElementById('vista-' + id);
-  if (vista) vista.classList.remove('oculto');
-  if (btn) btn.classList.add('active');
-  if (id === 'historial') renderHistorial();
-}
-
-// --- 3. LÓGICA DEL TECLADO (CORREGIDA) ---
+// --- 3. LÓGICA DEL TECLADO ---
 function tecla(val) {
-  // BLOQUEO: Si no hay producto seleccionado, no permite escribir números
-  if (!productoSeleccionado && modoTeclado === 'cant') {
-    alert("Primero toca un producto de la lista");
-    return;
-  }
-
+  // Manejo de caracteres especiales
   if (val === 'C') {
     valorTeclado = '0';
   } else if (val === 'back') {
@@ -54,13 +48,13 @@ function tecla(val) {
   } else if (val === '+/-') {
     valorTeclado = valorTeclado.startsWith('-') ? valorTeclado.slice(1) : '-' + valorTeclado;
   } else {
-    // Reemplaza el '0' inicial para evitar '08'
+    // Reemplaza el cero inicial por el número presionado
     valorTeclado = valorTeclado === '0' ? val : valorTeclado + val;
   }
 
   document.getElementById('teclado-valor').textContent = valorTeclado;
 
-  // Si estamos en modo cantidad, actualizamos el carrito en tiempo real
+  // Si estamos en modo cantidad, actualizar el carrito automáticamente
   if (modoTeclado === 'cant' && productoSeleccionado) {
     const cantidad = parseFloat(valorTeclado) || 0;
     const idx = carrito.findIndex(c => c.id === productoSeleccionado.id);
@@ -75,12 +69,14 @@ function tecla(val) {
     } else if (cantidad > 0) {
       carrito.push({
         ...productoSeleccionado,
-        cantidad: cantidad,
+        cantidad,
         subtotal: productoSeleccionado.precio * cantidad
       });
     }
     renderCarrito();
-  } else if (modoTeclado === 'desc') {
+  }
+
+  if (modoTeclado === 'desc') {
     actualizarTotales();
   }
 }
@@ -93,16 +89,16 @@ function teclaAccion(modo) {
   actualizarTotales();
 }
 
-// --- 4. RENDERIZADO DE PRODUCTOS ---
+// --- 4. GESTIÓN DE PRODUCTOS ---
 function seleccionarProducto(p) {
   productoSeleccionado = p;
   modoTeclado = 'cant';
   
-  // Actualizar etiqueta del teclado para saber qué estamos editando
-  document.getElementById('teclado-label').textContent = `${p.emoji} ${p.nombre} ($${p.precio})`;
-
+  // Sincronizar teclado con la cantidad actual en carrito si existe
   const enCarrito = carrito.find(c => c.id === p.id);
   valorTeclado = enCarrito ? String(enCarrito.cantidad) : '0';
+
+  document.getElementById('teclado-label').textContent = 'Cantidad (kg)';
   document.getElementById('teclado-valor').textContent = valorTeclado;
 
   renderProductos();
@@ -113,13 +109,15 @@ function renderProductos() {
   if (!grid) return;
   grid.innerHTML = '';
 
-  productos.forEach(p => {
+  const buscador = document.getElementById('buscador');
+  const filtro = buscador ? buscador.value.toLowerCase() : '';
+
+  productos.filter(p => p.nombre.toLowerCase().includes(filtro)).forEach(p => {
     const div = document.createElement('div');
     div.className = 'tarjeta-producto';
-    // Estilo de selección
-    if (productoSeleccionado && productoSeleccionado.id === p.id) {
-      div.style.border = "3px solid #4CAF50";
-      div.style.backgroundColor = "#e8f5e9";
+    if (productoSeleccionado?.id === p.id) {
+      div.style.border = "2px solid #4CAF50";
+      div.style.background = "#e8f5e9";
     }
     div.innerHTML = `
       <div class="tarjeta-emoji">${p.emoji}</div>
@@ -148,11 +146,14 @@ function renderCarrito() {
   carrito.forEach(item => {
     const div = document.createElement('div');
     div.className = 'item-carrito';
-    div.style = "display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; cursor:pointer";
     div.innerHTML = `
-      <span>${item.emoji} ${item.nombre} (${item.cantidad}kg)</span>
-      <strong>$${item.subtotal.toFixed(2)}</strong>
+      <div style="flex:1">
+        <strong>${item.emoji} ${item.nombre}</strong><br>
+        <small>${item.cantidad} kg x $${item.precio}</small>
+      </div>
+      <span style="font-weight:bold">$${item.subtotal.toFixed(2)}</span>
     `;
+    // Al hacer clic en el item del carrito, lo seleccionamos para editar
     div.onclick = () => seleccionarProducto(productos.find(p => p.id === item.id));
     wrap.appendChild(div);
   });
@@ -162,16 +163,16 @@ function renderCarrito() {
 function actualizarTotales() {
   const subtotal = carrito.reduce((acc, curr) => acc + curr.subtotal, 0);
   const descPct = modoTeclado === 'desc' ? (parseFloat(valorTeclado) || 0) : 0;
-  const descuento = subtotal * (descPct / 100);
-  const total = subtotal - descuento;
+  const montoDesc = subtotal * (descPct / 100);
+  const total = subtotal - montoDesc;
 
   document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
   document.getElementById('total').textContent = `$${total.toFixed(2)}`;
   
   const lineaDesc = document.getElementById('linea-desc');
-  if (descuento > 0) {
+  if (montoDesc > 0) {
     lineaDesc.style.display = 'flex';
-    document.getElementById('monto-desc').textContent = `-$${descuento.toFixed(2)}`;
+    document.getElementById('monto-desc').textContent = `-$${montoDesc.toFixed(2)}`;
   } else {
     lineaDesc.style.display = 'none';
   }
@@ -183,50 +184,89 @@ function selPago(btn, metodo) {
   metodoPago = metodo;
 }
 
-// --- 6. CIERRE DE VENTA (LIMPIEZA TOTAL) ---
 function confirmarVenta() {
   if (carrito.length === 0) return alert('El carrito está vacío');
 
-  const totalStr = document.getElementById('total').textContent;
+  const totalFinal = parseFloat(document.getElementById('total').textContent.replace('$', ''));
 
   const venta = {
     id: nextVenta++,
-    fecha: new Date().toLocaleString(),
+    fecha: new Date().toLocaleString('es-AR'),
     items: [...carrito],
-    total: totalStr,
+    total: totalFinal,
     pago: metodoPago
   };
 
   historial.unshift(venta);
-  localStorage.setItem('historial', JSON.stringify(historial));
-  localStorage.setItem('nextVenta', nextVenta);
+  guardarLocal();
 
-  // RESET ABSOLUTO
+  // --- RESET TOTAL ---
   carrito = [];
   productoSeleccionado = null;
   valorTeclado = '0';
   modoTeclado = 'cant';
   metodoPago = 'efectivo';
 
-  // Limpiar Interfaz
+  // Reset Interfaz
   document.getElementById('teclado-valor').textContent = '0';
-  document.getElementById('teclado-label').textContent = 'Seleccione Producto';
+  document.getElementById('teclado-label').textContent = 'Cantidad (kg)';
   document.querySelectorAll('.btn-pago').forEach(b => b.classList.remove('active'));
-  if (document.querySelector('.btn-pago')) document.querySelector('.btn-pago').classList.add('active');
+  const btnEfectivo = document.querySelector('.btn-pago');
+  if (btnEfectivo) btnEfectivo.classList.add('active');
 
   renderCarrito();
   renderProductos();
-  alert(`✅ Venta #${venta.id} completada.`);
+  alert(`✅ Venta #${venta.id} guardada.`);
 }
 
 function cancelarVenta() {
-  if (confirm('¿Vaciar todo el carrito?')) {
+  if (carrito.length > 0 && confirm('¿Deseas cancelar la venta y vaciar el carrito?')) {
     carrito = [];
     productoSeleccionado = null;
     valorTeclado = '0';
     document.getElementById('teclado-valor').textContent = '0';
-    document.getElementById('teclado-label').textContent = 'Cantidad (kg)';
     renderCarrito();
+    renderProductos();
+  }
+}
+
+// --- 6. NAVEGACIÓN Y VISTAS ---
+function mostrarVista(id, btn) {
+  document.querySelectorAll('.vista').forEach(v => v.classList.add('oculto'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  
+  const vista = document.getElementById('vista-' + id);
+  if (vista) vista.classList.remove('oculto');
+  if (btn) btn.classList.add('active');
+
+  if (id === 'inventario') renderInventario();
+  if (id === 'historial') renderHistorial();
+}
+
+// --- 7. INVENTARIO E HISTORIAL ---
+function renderInventario() {
+  const tbody = document.getElementById('inv-tabla');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  productos.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.emoji} ${p.nombre}</td>
+      <td>$${p.precio}</td>
+      <td>${p.stock}</td>
+      <td>
+        <button onclick="eliminarProducto(${i})" style="background:red; color:white; border:none; padding:5px; border-radius:3px; cursor:pointer">Eliminar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function eliminarProducto(index) {
+  if (confirm('¿Eliminar producto?')) {
+    productos.splice(index, 1);
+    guardarLocal();
+    renderInventario();
     renderProductos();
   }
 }
@@ -237,14 +277,19 @@ function renderHistorial() {
   tbody.innerHTML = '';
   historial.forEach(v => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>#${v.id}</td><td>${v.fecha}</td><td>${v.total}</td><td>${v.pago}</td>`;
+    tr.innerHTML = `
+      <td>#${v.id}</td>
+      <td>${v.fecha}</td>
+      <td>$${v.total.toFixed(2)}</td>
+      <td><span class="badge-pago">${v.pago}</span></td>
+    `;
     tbody.appendChild(tr);
   });
 }
 
-// --- 7. INICIO ---
+// --- 8. INICIO ---
 window.onload = () => {
+  actualizarReloj();
   renderProductos();
   renderCarrito();
-  actualizarReloj();
 };
