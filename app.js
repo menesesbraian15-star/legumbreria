@@ -1,3 +1,7 @@
+// =========================
+// LEGUMBRERÍA POS - FIXED
+// =========================
+
 // --- DATOS ---
 const productosDefault = [
   { id:1, nombre:'Zanahoria', precio:800, stock:15, emoji:'🥕' },
@@ -10,37 +14,64 @@ const productosDefault = [
   { id:8, nombre:'Manzana', precio:950, stock:12, emoji:'🍎' },
 ];
 
-let productos = JSON.parse(localStorage.getItem('productos') || 'null') || productosDefault;
-let nextId = parseInt(localStorage.getItem('nextId') || '9');
+let productos =
+  JSON.parse(localStorage.getItem('productos') || 'null')
+  || productosDefault;
+
+let nextId =
+  parseInt(localStorage.getItem('nextId') || '9');
+
 let carrito = [];
-let historial = JSON.parse(localStorage.getItem('historial') || '[]');
-let nextVenta = parseInt(localStorage.getItem('nextVenta') || '1');
+
+let historial =
+  JSON.parse(localStorage.getItem('historial') || '[]');
+
+let nextVenta =
+  parseInt(localStorage.getItem('nextVenta') || '1');
+
 let metodoPago = 'efectivo';
 let modoTeclado = 'cant';
-let valorTeclado = '0';
+let valorTeclado = '';
 let productoSeleccionado = null;
 
+// =========================
+// GUARDAR
+// =========================
 function guardarProductos() {
-  localStorage.setItem('productos', JSON.stringify(productos));
-  localStorage.setItem('nextId', String(nextId));
+
+  localStorage.setItem(
+    'productos',
+    JSON.stringify(productos)
+  );
+
+  localStorage.setItem(
+    'nextId',
+    String(nextId)
+  );
 }
 
-// --- RELOJ ---
+// =========================
+// RELOJ
+// =========================
 function actualizarReloj() {
+
   const ahora = new Date();
 
   document.getElementById('reloj').textContent =
     ahora.toLocaleTimeString('es-AR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
+      hour:'2-digit',
+      minute:'2-digit',
+      second:'2-digit'
     });
 }
 
 setInterval(actualizarReloj, 1000);
+
 actualizarReloj();
 
-// --- NAVEGACIÓN ---
+// =========================
+// NAVEGACIÓN
+// =========================
 function mostrarVista(id) {
 
   document.querySelectorAll('.vista')
@@ -55,76 +86,114 @@ function mostrarVista(id) {
   event.currentTarget.classList.add('active');
 
   if (id === 'inventario') renderInventario();
+
   if (id === 'historial') renderHistorial();
 }
 
-// --- TECLADO ---
+// =========================
+// TECLADO
+// =========================
 function teclaAccion(modo) {
 
   modoTeclado = modo;
-  valorTeclado = '0';
+
+  valorTeclado = '';
 
   document.getElementById('teclado-label').textContent =
     modo === 'cant'
       ? 'Cantidad (kg)'
       : 'Descuento (%)';
 
-  document.getElementById('teclado-valor').textContent = '0';
+  document.getElementById('teclado-valor').textContent =
+    '0';
 
   actualizarTotales();
 }
 
 function tecla(val) {
 
+  // borrar
   if (val === 'C') {
 
-    valorTeclado = '0';
+    valorTeclado = '';
 
-  } else if (val === 'back') {
+  }
+
+  // borrar uno
+  else if (val === 'back') {
 
     valorTeclado =
       valorTeclado.length > 1
         ? valorTeclado.slice(0, -1)
-        : '0';
+        : '';
 
-  } else if (val === '+/-') {
+  }
+
+  // negativo
+  else if (val === '+/-') {
 
     valorTeclado =
       valorTeclado.startsWith('-')
         ? valorTeclado.slice(1)
         : '-' + valorTeclado;
 
-  } else if (val === '.') {
-
-    if (!valorTeclado.includes('.')) {
-      valorTeclado += '.';
-    }
-
-  } else {
-
-    valorTeclado =
-      valorTeclado === '0'
-        ? val
-        : valorTeclado + val;
   }
 
-  document.getElementById('teclado-valor').textContent = valorTeclado;
+  // decimal
+  else if (val === '.') {
 
-  // --- CANTIDAD ---
-  if (modoTeclado === 'cant' && productoSeleccionado) {
+    if (!valorTeclado.includes('.')) {
 
-    const cantidad = parseFloat(valorTeclado) || 0;
+      valorTeclado =
+        valorTeclado === ''
+          ? '0.'
+          : valorTeclado + '.';
+    }
+  }
 
-    let item = carrito.find(
-      c => c.id === productoSeleccionado.id
-    );
+  // números
+  else {
 
-    // eliminar si cantidad es 0
+    if (
+      valorTeclado === ''
+      || valorTeclado === '0'
+    ) {
+
+      valorTeclado = String(val);
+
+    } else {
+
+      valorTeclado += String(val);
+    }
+  }
+
+  // mostrar
+  document.getElementById('teclado-valor').textContent =
+    valorTeclado || '0';
+
+  // =====================
+  // CANTIDAD
+  // =====================
+  if (
+    modoTeclado === 'cant'
+    && productoSeleccionado
+  ) {
+
+    const cantidad =
+      parseFloat(valorTeclado) || 0;
+
+    let item =
+      carrito.find(
+        c => c.id === productoSeleccionado.id
+      );
+
+    // eliminar si queda en 0
     if (cantidad <= 0) {
 
-      carrito = carrito.filter(
-        c => c.id !== productoSeleccionado.id
-      );
+      carrito =
+        carrito.filter(
+          c => c.id !== productoSeleccionado.id
+        );
 
     } else {
 
@@ -132,18 +201,30 @@ function tecla(val) {
       if (item) {
 
         item.cantidad = cantidad;
-        item.subtotal = item.precio * cantidad;
 
-      } else {
+        item.subtotal =
+          item.precio * cantidad;
 
-        // agregar nuevo
+      }
+
+      // nuevo
+      else {
+
         carrito.push({
+
           id: productoSeleccionado.id,
+
           nombre: productoSeleccionado.nombre,
+
           emoji: productoSeleccionado.emoji,
+
           precio: productoSeleccionado.precio,
+
           cantidad: cantidad,
-          subtotal: productoSeleccionado.precio * cantidad
+
+          subtotal:
+            productoSeleccionado.precio
+            * cantidad
         });
       }
     }
@@ -151,13 +232,18 @@ function tecla(val) {
     renderCarrito();
   }
 
-  // --- DESCUENTO ---
+  // =====================
+  // DESCUENTO
+  // =====================
   if (modoTeclado === 'desc') {
+
     actualizarTotales();
   }
 }
 
-// --- PRODUCTOS ---
+// =========================
+// PRODUCTOS
+// =========================
 function renderProductos() {
 
   const q =
@@ -167,38 +253,49 @@ function renderProductos() {
         : ''
     ).toLowerCase();
 
-  const grid = document.getElementById('productos-grid');
+  const grid =
+    document.getElementById('productos-grid');
 
   grid.innerHTML = '';
 
   productos
-    .filter(p =>
-      p.nombre.toLowerCase().includes(q)
+    .filter(
+      p => p.nombre.toLowerCase().includes(q)
     )
     .forEach(p => {
 
-      const div = document.createElement('div');
+      const div =
+        document.createElement('div');
 
-      div.className = 'tarjeta-producto';
+      div.className =
+        'tarjeta-producto';
 
       if (
-        productoSeleccionado &&
-        productoSeleccionado.id === p.id
+        productoSeleccionado
+        && productoSeleccionado.id === p.id
       ) {
 
         div.style.borderColor = '#4CAF50';
+
         div.style.background = '#f1f8e9';
       }
 
       div.innerHTML = `
-        <div class="tarjeta-emoji">${p.emoji}</div>
-        <div class="tarjeta-nombre">${p.nombre}</div>
+        <div class="tarjeta-emoji">
+          ${p.emoji}
+        </div>
+
+        <div class="tarjeta-nombre">
+          ${p.nombre}
+        </div>
+
         <div class="tarjeta-precio">
           $${p.precio.toLocaleString()}/kg
         </div>
       `;
 
-      div.onclick = () => seleccionarProducto(p);
+      div.onclick =
+        () => seleccionarProducto(p);
 
       grid.appendChild(div);
     });
@@ -210,7 +307,8 @@ function seleccionarProducto(p) {
 
   modoTeclado = 'cant';
 
-  valorTeclado = '0';
+  // FIX PRINCIPAL
+  valorTeclado = '';
 
   document.getElementById('teclado-label').textContent =
     'Cantidad (kg)';
@@ -218,11 +316,13 @@ function seleccionarProducto(p) {
   document.getElementById('teclado-valor').textContent =
     '0';
 
-  const item = carrito.find(c => c.id === p.id);
+  const item =
+    carrito.find(c => c.id === p.id);
 
   if (item) {
 
-    valorTeclado = String(item.cantidad);
+    valorTeclado =
+      String(item.cantidad);
 
     document.getElementById('teclado-valor').textContent =
       valorTeclado;
@@ -231,17 +331,21 @@ function seleccionarProducto(p) {
   renderProductos();
 }
 
-// --- CARRITO ---
+// =========================
+// CARRITO
+// =========================
 function renderCarrito() {
 
-  const wrap = document.getElementById('carrito-items');
+  const wrap =
+    document.getElementById('carrito-items');
 
-  const vacio = document.getElementById('carrito-vacio');
+  const vacio =
+    document.getElementById('carrito-vacio');
 
-  const itemsFiltrados =
+  const items =
     carrito.filter(c => c.cantidad > 0);
 
-  if (itemsFiltrados.length === 0) {
+  if (items.length === 0) {
 
     wrap.innerHTML = '';
 
@@ -258,14 +362,17 @@ function renderCarrito() {
 
   wrap.innerHTML = '';
 
-  itemsFiltrados.forEach((item, i) => {
+  items.forEach((item, i) => {
 
-    const div = document.createElement('div');
+    const div =
+      document.createElement('div');
 
-    div.className = 'item-carrito';
+    div.className =
+      'item-carrito';
 
     div.innerHTML = `
       <div class="item-carrito-info">
+
         <div class="item-carrito-nombre">
           ${item.emoji} ${item.nombre}
         </div>
@@ -274,6 +381,7 @@ function renderCarrito() {
           ${item.cantidad.toFixed(2)} kg ×
           $${item.precio.toLocaleString()}
         </div>
+
       </div>
 
       <span class="item-carrito-precio">
@@ -299,13 +407,18 @@ function quitarItem(i) {
   carrito.splice(i, 1);
 
   if (carrito.length === 0) {
+
     productoSeleccionado = null;
   }
 
   renderCarrito();
+
   renderProductos();
 }
 
+// =========================
+// TOTALES
+// =========================
 function actualizarTotales() {
 
   const subtotal =
@@ -316,7 +429,10 @@ function actualizarTotales() {
 
   const descPct =
     modoTeclado === 'desc'
-      ? Math.min(parseFloat(valorTeclado) || 0, 100)
+      ? Math.min(
+          parseFloat(valorTeclado) || 0,
+          100
+        )
       : 0;
 
   const descMonto =
@@ -347,7 +463,9 @@ function actualizarTotales() {
   }
 }
 
-// --- PAGO ---
+// =========================
+// PAGO
+// =========================
 function selPago(btn, metodo) {
 
   document.querySelectorAll('.btn-pago')
@@ -358,7 +476,9 @@ function selPago(btn, metodo) {
   metodoPago = metodo;
 }
 
-// --- CONFIRMAR VENTA ---
+// =========================
+// CONFIRMAR VENTA
+// =========================
 function confirmarVenta() {
 
   const itemsValidos =
@@ -379,7 +499,10 @@ function confirmarVenta() {
 
   const descPct =
     modoTeclado === 'desc'
-      ? Math.min(parseFloat(valorTeclado) || 0, 100)
+      ? Math.min(
+          parseFloat(valorTeclado) || 0,
+          100
+        )
       : 0;
 
   const descMonto =
@@ -392,15 +515,19 @@ function confirmarVenta() {
 
     id: nextVenta++,
 
-    fecha: new Date().toLocaleString('es-AR'),
+    fecha:
+      new Date().toLocaleString('es-AR'),
 
-    items: JSON.parse(JSON.stringify(itemsValidos)),
+    items:
+      JSON.parse(
+        JSON.stringify(itemsValidos)
+      ),
 
     descuento: descMonto,
 
     total,
 
-    pago: metodoPago,
+    pago: metodoPago
   };
 
   historial.unshift(venta);
@@ -420,7 +547,7 @@ function confirmarVenta() {
 
   productoSeleccionado = null;
 
-  valorTeclado = '0';
+  valorTeclado = '';
 
   modoTeclado = 'cant';
 
@@ -449,25 +576,27 @@ function confirmarVenta() {
   );
 }
 
+// =========================
+// CANCELAR
+// =========================
 function cancelarVenta() {
 
   if (carrito.length === 0) return;
 
-  if (confirm('¿Cancelar la venta actual?')) {
+  if (
+    confirm('¿Cancelar la venta actual?')
+  ) {
 
     carrito = [];
 
     productoSeleccionado = null;
 
-    valorTeclado = '0';
+    valorTeclado = '';
 
     modoTeclado = 'cant';
 
     document.getElementById('teclado-valor').textContent =
       '0';
-
-    document.getElementById('teclado-label').textContent =
-      'Cantidad (kg)';
 
     renderCarrito();
 
@@ -477,7 +606,9 @@ function cancelarVenta() {
   }
 }
 
-// --- INVENTARIO ---
+// =========================
+// INVENTARIO
+// =========================
 function agregarProducto() {
 
   const nombre =
@@ -499,9 +630,9 @@ function agregarProducto() {
       .value.trim() || '🥦';
 
   if (
-    !nombre ||
-    isNaN(precio) ||
-    isNaN(stock)
+    !nombre
+    || isNaN(precio)
+    || isNaN(stock)
   ) {
 
     alert('Completá todos los campos');
@@ -523,6 +654,7 @@ function agregarProducto() {
     'inv-stock',
     'inv-emoji'
   ].forEach(id => {
+
     document.getElementById(id).value = '';
   });
 
@@ -533,67 +665,9 @@ function agregarProducto() {
   renderProductos();
 }
 
-function editarProducto(i) {
-
-  const p = productos[i];
-
-  const nuevoNombre =
-    prompt('Nombre:', p.nombre);
-
-  if (nuevoNombre === null) return;
-
-  const nuevoPrecio =
-    prompt('Precio ($/kg):', p.precio);
-
-  if (nuevoPrecio === null) return;
-
-  const nuevoStock =
-    prompt('Stock:', p.stock);
-
-  if (nuevoStock === null) return;
-
-  const nuevoEmoji =
-    prompt('Emoji:', p.emoji);
-
-  if (nuevoEmoji === null) return;
-
-  productos[i].nombre =
-    nuevoNombre.trim() || p.nombre;
-
-  productos[i].precio =
-    parseFloat(nuevoPrecio) || p.precio;
-
-  productos[i].stock =
-    parseFloat(nuevoStock) || p.stock;
-
-  productos[i].emoji =
-    nuevoEmoji.trim() || p.emoji;
-
-  guardarProductos();
-
-  renderInventario();
-
-  renderProductos();
-}
-
-function eliminarProducto(i) {
-
-  if (
-    confirm(
-      `¿Eliminar "${productos[i].nombre}"?`
-    )
-  ) {
-
-    productos.splice(i, 1);
-
-    guardarProductos();
-
-    renderInventario();
-
-    renderProductos();
-  }
-}
-
+// =========================
+// INVENTARIO TABLA
+// =========================
 function renderInventario() {
 
   const tbody =
@@ -603,27 +677,22 @@ function renderInventario() {
 
   productos.forEach((p, i) => {
 
-    const tr = document.createElement('tr');
+    const tr =
+      document.createElement('tr');
 
     tr.innerHTML = `
       <td>${p.emoji} ${p.nombre}</td>
       <td>$${p.precio.toLocaleString()}</td>
       <td>${p.stock}</td>
 
-      <td style="display:flex;gap:6px;">
+      <td style="display:flex;gap:6px">
 
-        <button
-          onclick="editarProducto(${i})"
-          style="background:#1565c0;padding:4px 10px;font-size:12px"
-        >
-          ✏️ Editar
+        <button onclick="editarProducto(${i})">
+          ✏️
         </button>
 
-        <button
-          onclick="eliminarProducto(${i})"
-          style="background:#e53935;padding:4px 10px;font-size:12px"
-        >
-          🗑 Eliminar
+        <button onclick="eliminarProducto(${i})">
+          🗑
         </button>
 
       </td>
@@ -633,7 +702,9 @@ function renderInventario() {
   });
 }
 
-// --- HISTORIAL ---
+// =========================
+// HISTORIAL
+// =========================
 function renderHistorial() {
 
   const tbody =
@@ -660,45 +731,26 @@ function renderHistorial() {
         `${i.emoji}${i.nombre} (${i.cantidad.toFixed(2)}kg)`
       ).join(', ');
 
-    const badge =
-      `<span class="badge-pago badge-${v.pago}">
-        ${v.pago}
-      </span>`;
-
-    const tr = document.createElement('tr');
+    const tr =
+      document.createElement('tr');
 
     tr.innerHTML = `
       <td>#${v.id}</td>
       <td>${v.fecha}</td>
-
-      <td style="font-size:12px;color:#666">
-        ${detalle}
-      </td>
-
-      <td>${badge}</td>
-
-      <td style="font-weight:bold;color:#2e7d32">
-        $${v.total.toFixed(2)}
-      </td>
+      <td>${detalle}</td>
+      <td>${v.pago}</td>
+      <td>$${v.total.toFixed(2)}</td>
     `;
 
     tbody.appendChild(tr);
   });
 }
 
-function borrarHistorial() {
-
-  if (confirm('¿Borrar todo el historial?')) {
-
-    historial = [];
-
-    localStorage.setItem('historial', '[]');
-
-    renderHistorial();
-  }
-}
-
-// --- INICIO ---
+// =========================
+// INICIO
+// =========================
 renderProductos();
+
 renderCarrito();
+
 actualizarTotales();
